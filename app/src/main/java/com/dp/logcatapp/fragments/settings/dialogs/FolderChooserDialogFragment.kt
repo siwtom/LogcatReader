@@ -72,8 +72,6 @@ class FolderChooserDialogFragment : BaseDialogFragment(), View.OnClickListener {
         } else {
           null
         }
-
-        (targetFragment as SettingsFragment).setupCustomSaveLocationPreLollipop(folder)
       }
       .setNegativeButton(android.R.string.cancel) { _, _ ->
         dismiss()

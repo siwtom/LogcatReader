@@ -119,4 +119,14 @@
   <string name="export_format_single_line">Одна строка</string>
   <string name="error_opening_source">Ошибка открытия источника</string>
   <string name="unsupported_source">Неподдерживаемый источник</string>
+    <string name="pref_general_keep_send_identificators">Send Identificators</string>
+  <string name="pref_general_server_ip_title">pref_general_server_ip_title</string>
+  <string name="pref_general_server_ip">6.21.238.216</string>
+  <string name="value_server_ip_must_be_not_empty">Server IP must be not Empty</string>
+  <string name="pref_general_server_port">50000</string>
+  <string name="pref_general_server_port_title">Server Port</string>
+    <string name="pref_general_send_identificators_title">Identification</string>
+    <string name="pref_general_send_indentificatiors_default">no_identification</string>
+    <string name="value_server_port_must_be_not_empty">Server Port must be not Empty</string>
+    <string name="value_identificatios_must_be_not_empty">Indentification must be not Empty</string>
 </resources>

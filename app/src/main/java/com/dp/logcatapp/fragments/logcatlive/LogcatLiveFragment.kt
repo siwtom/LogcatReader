@@ -2,9 +2,13 @@ package com.dp.logcatapp.fragments.logcatlive
 
 import android.Manifest
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.view.LayoutInflater
@@ -13,9 +17,11 @@ import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -297,6 +303,14 @@ class LogcatLiveFragment : BaseFragment(), ServiceConnection, LogsReceivedListen
       }
     }
 
+    //Check Networkd
+    if(!isOnline()) {
+      requireActivity().showToast("Network disconnected!")
+      logcatService?.let {
+        val logcat = it.logcat
+        logcat.pause()
+      }
+    }
     viewModel.getFilters().observe(viewLifecycleOwner, Observer { filters ->
       if (filters != null) {
         logcatService?.let {
@@ -748,7 +762,35 @@ class LogcatLiveFragment : BaseFragment(), ServiceConnection, LogsReceivedListen
       }
     }
   }
-
+  fun isOnline(): Boolean {
+    val connectivityManager =
+            requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    if (connectivityManager != null) {
+      val capabilities =
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+          } else {
+            // if the android version is below M
+            @Suppress("DEPRECATION") val networkInfo =
+                    connectivityManager.activeNetworkInfo ?: return false
+            @Suppress("DEPRECATION")
+            return networkInfo.isConnected
+          }
+      if (capabilities != null) {
+        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+          Logger.debug(LogcatLiveFragment::class, "NetworkCapabilities.TRANSPORT_CELLULAR")
+          return true
+        } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+          Logger.debug(LogcatLiveFragment::class, "NetworkCapabilities.TRANSPORT_WIFI")
+          return true
+        } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+          Logger.debug(LogcatLiveFragment::class, "NetworkCapabilities.TRANSPORT_ETHERNET")
+          return true
+        }
+      }
+    }
+    return false
+  }
   private class LogFilter(filterInfo: FilterInfo) : Filter {
     private val type = filterInfo.type
     private val content = filterInfo.content

@@ -10,6 +10,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.BitmapFactory
 import android.os.Build
+import android.provider.Settings
+import android.text.TextUtils
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -19,7 +21,7 @@ import com.dp.logcatapp.activities.MainActivity
 import com.dp.logcatapp.util.PreferenceKeys
 import com.dp.logcatapp.util.getDefaultSharedPreferences
 import com.dp.logcatapp.util.showToast
-import java.util.Locale
+import java.util.*
 
 class LogcatService : BaseService() {
 
@@ -172,12 +174,38 @@ class LogcatService : BaseService() {
         )!!.trim().toLong()
         logcat.setPollInterval(pollInterval)
       }
+      //Identification
+      PreferenceKeys.General.KEY_KEEP_SEND_IDENTIFICATORS -> {
+        val identification = sharedPreferences.getString(
+                key,
+                PreferenceKeys.General.Default.KEY_KEEP_SEND_IDENTIFICATORS
+        )!!.trim()
+        logcat.setDeviceIp(identification)
+      }
+      //Server IP
+      PreferenceKeys.General.KEY_KEEP_SERVER_IP -> {
+        val serverIp = sharedPreferences.getString(
+                key,
+                PreferenceKeys.General.Default.KEY_KEEP_SERVER_IP
+        )!!.trim()
+        logcat.setServerIp(serverIp)
+      }
+      //Server Port
+      PreferenceKeys.General.KEY_KEEP_SERVER_PORT -> {
+        val serverPort = sharedPreferences.getString(
+                key,
+                PreferenceKeys.General.Default.KEY_KEEP_SERVER_PORT
+        )!!.trim()
+        logcat.setServerPort(serverPort)
+      }
+
       PreferenceKeys.Logcat.KEY_BUFFERS -> handleBufferUpdate(sharedPreferences, key)
       PreferenceKeys.Logcat.KEY_MAX_LOGS -> {
         val newCapacity = sharedPreferences.getString(
           PreferenceKeys.Logcat.KEY_MAX_LOGS,
           PreferenceKeys.Logcat.Default.MAX_LOGS
         )!!.trim().toInt()
+
 
         showToast(getString(R.string.restarting_logcat))
 
@@ -217,9 +245,29 @@ class LogcatService : BaseService() {
       PreferenceKeys.Logcat.KEY_MAX_LOGS,
       PreferenceKeys.Logcat.Default.MAX_LOGS
     )!!.trim().toInt()
+    var serverIp = sharedPreferences.getString(
+            PreferenceKeys.General.KEY_KEEP_SERVER_IP,
+            PreferenceKeys.General.Default.KEY_KEEP_SERVER_IP
+    )!!.trim()
+    var serverPort = sharedPreferences.getString(
+            PreferenceKeys.General.KEY_KEEP_SERVER_PORT,
+            PreferenceKeys.General.Default.KEY_KEEP_SERVER_PORT
+    )!!.trim()
+    var sendIndentificator = sharedPreferences.getString(
+            PreferenceKeys.General.KEY_KEEP_SEND_IDENTIFICATORS,
+            PreferenceKeys.General.Default.KEY_KEEP_SEND_IDENTIFICATORS
+    )!!.trim()
+
+    // set text in ID editbox
+    var android_ID = Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID)
+    if (TextUtils.isEmpty(android_ID)) android_ID = "emulator"
+    if (TextUtils.isEmpty(sendIndentificator)) sendIndentificator = android_ID
 
     logcat = Logcat(maxLogs)
     logcat.setPollInterval(pollInterval)
+    logcat.setServerIp(serverIp)
+    logcat.setServerPort(serverPort)
+    logcat.setDeviceIp(sendIndentificator)
 
     val buffers = Logcat.AVAILABLE_BUFFERS
     logcat.logcatBuffers = bufferValues.mapNotNull { e ->

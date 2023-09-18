@@ -9,10 +9,14 @@ object PreferenceKeys {
   const val MAIN_PREF_SCREEN = "pref_key_main_screen"
 
   object General {
-    const val KEY_KEEP_SCREEN_ON = "pref_key_general_keep_screen_on"
+    const val KEY_KEEP_SEND_IDENTIFICATORS = "pref_key_general_send_identificators"
+    const val KEY_KEEP_SERVER_IP = "pref_key_general_server_ip"
+    const val KEY_KEEP_SERVER_PORT = "pref_key_general_server_port"
 
     object Default {
-      const val KEY_KEEP_SCREEN_ON = false
+      const val KEY_KEEP_SEND_IDENTIFICATORS = "no_identification"
+      const val KEY_KEEP_SERVER_IP = "127.0.0.1"
+      const val KEY_KEEP_SERVER_PORT = "50000"
     }
   }
 

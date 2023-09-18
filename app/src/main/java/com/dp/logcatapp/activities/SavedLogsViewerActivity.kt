@@ -41,11 +41,11 @@ class SavedLogsViewerActivity : BaseActivityWithToolbar() {
 
   override fun onResume() {
     super.onResume()
-    setKeepScreenOn(
+    /*setKeepScreenOn(
       getDefaultSharedPreferences().getBoolean(
         PreferenceKeys.General.KEY_KEEP_SCREEN_ON,
         PreferenceKeys.General.Default.KEY_KEEP_SCREEN_ON
       )
-    )
+    )*/
   }
 }

@@ -1,40 +1,44 @@
 package com.dp.logcat
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.ConditionVariable
 import android.os.Handler
 import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.dp.logger.Logger
 import com.logcat.collections.FixedCircularArray
-import java.io.BufferedReader
-import java.io.BufferedWriter
-import java.io.Closeable
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileWriter
-import java.io.IOException
-import java.io.InputStream
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.util.Collections
-import java.util.WeakHashMap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import java.io.*
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.SocketException
+import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 
 class Logcat(initialCapacity: Int = INITIAL_LOG_CAPACITY) : Closeable {
   var logcatBuffers = DEFAULT_BUFFERS
+  private lateinit var connectivityManager: ConnectivityManager
+  private var serverIp = "127.0.0.1"
+  private var serverPort = "50000"
+  private var identificatorId = "N/A"
   private val logcatCmd = arrayOf("logcat", "-v", "long")
   private var pollInterval: Long = 250L // in ms
   private var threadLogcat: Thread? = null
   private var logcatProcess: Process? = null
   private val handler: Handler = Handler(Looper.getMainLooper())
-
+  private var mSocket: DatagramSocket? = null
   private var recordStartIndex = -1
 
   private val listeners = Collections.newSetFromMap(WeakHashMap<LogsReceivedListener, Boolean>())
@@ -112,7 +116,60 @@ class Logcat(initialCapacity: Int = INITIAL_LOG_CAPACITY) : Closeable {
         if (filteredLogs.isNotEmpty()) {
           handler.post { listeners.forEach { it.onReceivedLogs(filteredLogs) } }
         }
+        //Send message to Server
+        if (filteredLogs.isNotEmpty()) {
+          //Logger.debug(Logcat::class, "serverIp: $serverIp")
+          //Logger.debug(Logcat::class, "serverPort: $serverPort")
+          //Logger.debug(Logcat::class, "Identification: $identificatorId")
+          val destAddress = InetAddress.getByName(serverIp)
 
+          var socketFailed = false
+          /*filteredLogs.forEach { log ->
+            val sendingLine = "${identificatorId} ${log.id} ${log.date} ${log.pid} ${log.tag} ${log.msg}${System.getProperty("line.separator")}"
+            //Logger.debug(Logcat::class, "sendingLine: $sendingLine")
+            val packet = DatagramPacket(sendingLine.toByteArray(), sendingLine.length,
+                    destAddress, serverPort.toInt())
+            // Rest of your code to send the packet
+            try {
+              if(mSocket == null) mSocket = DatagramSocket()
+              mSocket!!.send(packet)
+              if (socketFailed) {
+                Logger.debug(Logcat::class, "socket back online!")
+                socketFailed = false
+              }
+
+            } catch (e: SocketException) {
+              // it's OK, line was remembered
+              if (!socketFailed) {
+                Logger.debug(Logcat::class, "socket send failed $e")
+                socketFailed = true
+              }
+            }
+          }*/
+
+          GlobalScope.launch(Dispatchers.IO) {
+            try {
+              filteredLogs.forEach { log ->
+                val sendingLine = "${identificatorId} ${log.id} ${log.date} ${log.pid} ${log.tag} ${log.msg}${System.getProperty("line.separator")}"
+                val packet = DatagramPacket(sendingLine.toByteArray(), sendingLine.length,
+                        destAddress, serverPort.toInt())
+
+                // Rest of your code to send the packet
+                if(mSocket == null) mSocket = DatagramSocket()
+                mSocket!!.send(packet)
+
+                if (socketFailed) {
+                  Logger.debug(Logcat::class, "socket back online!")
+                  socketFailed = false
+                }
+
+              }
+            } catch (e: SocketException) {
+              // Handle the exception
+              Logger.debug(Logcat::class, "socket send failed $e")
+            }
+          }
+        }
         pendingLogs.clear()
         pendingLogsFullCondition.signal()
       }
@@ -131,7 +188,7 @@ class Logcat(initialCapacity: Int = INITIAL_LOG_CAPACITY) : Closeable {
 
   fun stop() {
     logcatProcess?.destroy()
-
+    mSocket?.close();
     try {
       threadLogcat?.join(5000)
     } catch (e: InterruptedException) {
@@ -304,8 +361,24 @@ class Logcat(initialCapacity: Int = INITIAL_LOG_CAPACITY) : Closeable {
     this.pollInterval = interval
     pollCondition.open()
   }
+  fun setServerIp(serverIp: String) {
+    this.serverIp = serverIp
+  }
+  fun setServerPort(serverPort: String) {
+    this.serverPort = serverPort
+  }
+  fun setDeviceIp(deviceId: String) {
+    this.identificatorId = deviceId
+  }
 
   private fun runLogcat() {
+    //notificationManager.notify(SERVICE_NOTIFICATION_ID, notification);
+    try {
+      mSocket = DatagramSocket()
+    } catch (e: SocketException) {
+      e.printStackTrace()
+      Logger.error(Logcat::class, "Socket creation failed!: $exitCode")
+    }
     val buffers = mutableListOf<String>()
     if (logcatBuffers.isNotEmpty() && AVAILABLE_BUFFERS.isNotEmpty()) {
       for (buffer in logcatBuffers) {
@@ -625,5 +698,6 @@ class Logcat(initialCapacity: Int = INITIAL_LOG_CAPACITY) : Closeable {
 
       return stdout.subList(start, end).map { it.trim() }.toList()
     }
+
   }
 }
